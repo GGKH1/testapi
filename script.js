@@ -4,31 +4,34 @@ const AIRTABLE_URL =
 const API_KEY =
   "Bearer patMmgGa6EFs3mlih.9a8183901a6ace97f263f3d8c4003bdd4405cdb9ed131913fe77a2a5d2aa6e7b";
 
+// Function to get form data
+function getFormData() {
+  const name = document.getElementById("name").value;
+  const height = document.getElementById("height").value;
+  const weight = document.getElementById("weight").value;
+  const birthdate = document.getElementById("birthdate").value;
+  const sport = document.getElementById("sport").value;
+
+  const birthdateFormatted = new Date(birthdate).toISOString().split("T")[0];
+
+  return {
+    fields: {
+      Name: name,
+      Height: parseInt(height),
+      Weight: parseInt(weight),
+      Birthdate: birthdateFormatted,
+      Sport: sport,
+    },
+  };
+}
+
+// Submit form (default)
 document
   .getElementById("userForm")
   .addEventListener("submit", function (event) {
     event.preventDefault();
 
-    // Fetch the data from the form
-    const name = document.getElementById("name").value;
-    const height = document.getElementById("height").value;
-    const weight = document.getElementById("weight").value;
-    const birthdate = document.getElementById("birthdate").value;
-    const sport = document.getElementById("sport").value;
-
-    // (YYYY-MM-DD)
-    const birthdateFormatted = new Date(birthdate).toISOString().split("T")[0];
-
-    // Constructing the data to send to Airtable
-    const userData = {
-      fields: {
-        Name: name,
-        Height: parseInt(height),
-        Weight: parseInt(weight),
-        Birthdate: birthdateFormatted,
-        Sport: sport,
-      },
-    };
+    const userData = getFormData();
 
     // Send the data to Airtable using fetch
     fetch(AIRTABLE_URL, {
@@ -43,15 +46,16 @@ document
       .then((data) => {
         // Display the data to the user
         const resultDiv = document.getElementById("result");
+        const { fields } = userData;
         resultDiv.innerHTML = `
-        <p class="text-green-600 font-bold">Your data has been submitted successfully!</p>
-        <p>Name: ${name}</p>
-        <p>Height: ${height} cm</p>
-        <p>Weight: ${weight} kg</p>
-        <p>Birth Date: ${birthdateFormatted}</p>
-        <p>Sport: ${sport}</p>
-        ${generateTrainingPlan(sport)}
-      `;
+          <p class="text-green-600 font-bold">Your data has been submitted successfully!</p>
+          <p>Name: ${fields.Name}</p>
+          <p>Height: ${fields.Height} cm</p>
+          <p>Weight: ${fields.Weight} kg</p>
+          <p>Birth Date: ${fields.Birthdate}</p>
+          <p>Sport: ${fields.Sport}</p>
+          ${generateTrainingPlan(fields.Sport)}
+        `;
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -94,27 +98,7 @@ document
   .addEventListener("click", function (event) {
     event.preventDefault();
 
-    // Fetch the data from the form again
-    const name = document.getElementById("name").value;
-    const height = document.getElementById("height").value;
-    const weight = document.getElementById("weight").value;
-    const birthdate = document.getElementById("birthdate").value;
-    const sport = document.getElementById("sport").value;
-
-    // Construct userData again for Add Athlete button
-    const userData = {
-      records: [
-        {
-          fields: {
-            Name: name,
-            Height: parseInt(height),
-            Weight: parseInt(weight),
-            Birthdate: new Date(birthdate).toISOString().split("T")[0],
-            Sport: sport,
-          },
-        },
-      ],
-    };
+    const userData = getFormData();
 
     // Send the data to Airtable to create a new athlete record
     fetch(AIRTABLE_URL, {
@@ -123,7 +107,7 @@ document
         "Content-Type": "application/json",
         Authorization: API_KEY,
       },
-      body: JSON.stringify(userData),
+      body: JSON.stringify({ records: [userData] }),
     })
       .then((response) => {
         if (!response.ok) {
@@ -153,7 +137,7 @@ document
     const name = document.getElementById("name").value;
 
     // Fetch records to find the matching athlete by name
-    fetch(`${AIRTABLE_URL}?filterByFormula={Name}="${name}"`, {
+    fetch(`${AIRTABLE_URL}?filterByFormula={Name}='${name}'`, {
       method: "GET",
       headers: {
         Authorization: API_KEY,
