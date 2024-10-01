@@ -1,4 +1,3 @@
-// Airtable API URL and Key
 const AIRTABLE_URL =
   "https://api.airtable.com/v0/appmOmH0VOO66YSx2/tblkZ8XuPGQASO3tx";
 const API_KEY =
@@ -25,7 +24,7 @@ function getFormData() {
   };
 }
 
-// Submit form (default)
+// Show athlete list when form is submitted
 document
   .getElementById("userForm")
   .addEventListener("submit", function (event) {
@@ -44,18 +43,54 @@ document
     })
       .then((response) => response.json())
       .then((data) => {
-        // Display the data to the user
-        const resultDiv = document.getElementById("result");
         const { fields } = userData;
-        resultDiv.innerHTML = `
-          <p class="text-green-600 font-bold">Your data has been submitted successfully!</p>
-          <p>Name: ${fields.Name}</p>
+
+        // Add athlete to the list on the left side
+        const athleteList = document.getElementById("athlete-list");
+        const listItem = document.createElement("li");
+        listItem.classList.add(
+          "bg-gray-300",
+          "mb-4",
+          "p-2",
+          "rounded",
+          "cursor-pointer"
+        );
+        listItem.innerHTML = `
+        <div class="flex justify-between">
+          <span>${fields.Name}</span>
+          <div>
+            <span class="cursor-pointer edit-icon" data-name="${
+              fields.Name
+            }" data-id="${data.records[0].id}">✏️</span>
+            <span class="cursor-pointer delete-icon" data-id="${
+              data.records[0].id
+            }">❌</span>
+          </div>
+        </div>
+        <div class="athlete-details hidden mt-2">
           <p>Height: ${fields.Height} cm</p>
           <p>Weight: ${fields.Weight} kg</p>
-          <p>Birth Date: ${fields.Birthdate}</p>
+          <p>Birthdate: ${fields.Birthdate}</p>
           <p>Sport: ${fields.Sport}</p>
           ${generateTrainingPlan(fields.Sport)}
-        `;
+        </div>
+      `;
+        athleteList.appendChild(listItem);
+
+        // Transition effect
+        document.getElementById("athleteList").classList.remove("hidden");
+
+        // Clear form fields
+        document.getElementById("userForm").reset();
+
+        // Toggle athlete details on name click
+        listItem.querySelector("span").addEventListener("click", function () {
+          const details = listItem.querySelector(".athlete-details");
+          details.classList.toggle("hidden");
+        });
+
+        // Edit and Delete actions
+        setupEditAndDeleteActions();
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -68,21 +103,21 @@ document
 function generateTrainingPlan(sport) {
   let plan = "";
   switch (sport) {
-    case "swimming":
+    case "Swimming":
       plan = "<p>Training Plan: 30 minutes swimming daily.</p>";
       break;
-    case "running":
+    case "Running":
       plan = "<p>Training Plan: Run 5km three times a week.</p>";
       break;
-    case "shooting":
+    case "Shooting":
       plan =
         "<p>Training Plan: Practice shooting accuracy for 1 hour twice a week.</p>";
       break;
-    case "horse_riding":
+    case "Horse_riding":
       plan =
         "<p>Training Plan: Horse riding practice for 1 hour every weekend.</p>";
       break;
-    case "fencing":
+    case "Fencing":
       plan =
         "<p>Training Plan: Fencing drills for 45 minutes on alternate days.</p>";
       break;
@@ -92,94 +127,64 @@ function generateTrainingPlan(sport) {
   return plan;
 }
 
-// Add athlete event listener
-document
-  .getElementById("addAthlete")
-  .addEventListener("click", function (event) {
-    event.preventDefault();
+// Setup Edit and Delete actions
+function setupEditAndDeleteActions() {
+  // Edit
+  document.querySelectorAll(".edit-icon").forEach((icon) => {
+    icon.addEventListener("click", function () {
+      const name = this.dataset.name;
+      if (confirm(`Do you want to edit athlete ${name}?`)) {
+        // Edit logic here (redirect back to form with data pre-filled)
+        const id = this.dataset.id;
 
-    const userData = getFormData();
-
-    // Send the data to Airtable to create a new athlete record
-    fetch(AIRTABLE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: API_KEY,
-      },
-      body: JSON.stringify({ records: [userData] }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to add athlete");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        document.getElementById(
-          "result"
-        ).innerHTML = `<p class="text-green-600 font-bold">Athlete added successfully!</p>`;
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        document.getElementById(
-          "result"
-        ).innerHTML = `<p class="text-red-600">Error adding athlete.</p>`;
-      });
+        // Fetch record by ID and prefill the form
+        fetch(`${AIRTABLE_URL}/${id}`, {
+          method: "GET",
+          headers: {
+            Authorization: API_KEY,
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            const athlete = data.fields;
+            document.getElementById("name").value = athlete.Name;
+            document.getElementById("height").value = athlete.Height;
+            document.getElementById("weight").value = athlete.Weight;
+            document.getElementById("birthdate").value = athlete.Birthdate;
+            document.getElementById("sport").value = athlete.Sport;
+          });
+      }
+    });
   });
 
-// Delete athlete (by name) event listener
-document
-  .getElementById("deleteAthlete")
-  .addEventListener("click", function (event) {
-    event.preventDefault();
-
-    const name = document.getElementById("name").value;
-
-    // Fetch records to find the matching athlete by name
-    fetch(`${AIRTABLE_URL}?filterByFormula={Name}='${name}'`, {
-      method: "GET",
-      headers: {
-        Authorization: API_KEY,
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.records.length > 0) {
-          const recordId = data.records[0].id;
-
-          // Delete the athlete (record) by record ID
-          fetch(`${AIRTABLE_URL}/${recordId}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: API_KEY,
-            },
-          })
-            .then((response) => {
-              if (response.ok) {
-                document.getElementById(
-                  "result"
-                ).innerHTML = `<p class="text-green-600 font-bold">Athlete deleted successfully!</p>`;
-              } else {
-                throw new Error("Failed to delete athlete");
+  // Delete
+  document.querySelectorAll(".delete-icon").forEach((icon) => {
+    icon.addEventListener("click", function () {
+      const name = this.previousElementSibling.dataset.name;
+      if (confirm(`Do you want to delete athlete ${name}?`)) {
+        const id = this.dataset.id;
+        // Delete from Airtable
+        fetch(`${AIRTABLE_URL}/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: API_KEY,
+          },
+        })
+          .then((response) => {
+            if (response.ok) {
+              // Remove athlete from the list
+              this.closest("li").remove();
+              if (!document.querySelector("#athlete-list").childElementCount) {
+                document.getElementById("athleteList").classList.add("hidden");
               }
-            })
-            .catch((error) => {
-              console.error("Error:", error);
-              document.getElementById(
-                "result"
-              ).innerHTML = `<p class="text-red-600">Error deleting athlete.</p>`;
-            });
-        } else {
-          document.getElementById(
-            "result"
-          ).innerHTML = `<p class="text-red-600">Athlete not found.</p>`;
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        document.getElementById(
-          "result"
-        ).innerHTML = `<p class="text-red-600">Error fetching athlete records.</p>`;
-      });
+            } else {
+              console.error("Error deleting athlete");
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+    });
   });
+}
